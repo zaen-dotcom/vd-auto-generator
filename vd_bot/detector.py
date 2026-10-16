@@ -10,6 +10,11 @@ from vd_bot.config import CX, CY, NEEDLE_COORDS, TARGET_COORDS
 from vd_bot.math_utils import circular_mean_angle, find_circular_clusters
 
 
+# Buffer pre-allocated untuk eliminasi alokasi memori berulang di loop (Zero Heap Churn)
+_target_votes_buf = np.zeros(360, dtype=np.int16)
+_needle_votes_buf = np.zeros(360, dtype=np.int16)
+
+
 def is_skillcheck_ui_present(frame: np.ndarray) -> bool:
   """Mendeteksi keberadaan UI Skill Check Violence District secara akurat.
 
@@ -36,7 +41,8 @@ def detect_white_target(frame: np.ndarray) -> Tuple[Optional[float], float]:
 
   Harus memiliki ketebalan radial (>= 2 lapisan) dan lebar sudut 2° - 16°.
   """
-  target_votes = np.zeros(360, dtype=np.int16)
+  _target_votes_buf.fill(0)
+  target_votes = _target_votes_buf
   for rx, ry in TARGET_COORDS:
     p = frame[ry, rx]
     B = p[:, 0].astype(int)
@@ -74,7 +80,8 @@ def detect_red_needle(
 
   Menolak pixel noise dan background statis.
   """
-  needle_votes = np.zeros(360, dtype=np.int16)
+  _needle_votes_buf.fill(0)
+  needle_votes = _needle_votes_buf
   for rx, ry in NEEDLE_COORDS:
     p = frame[ry, rx]
     B = p[:, 0].astype(int)

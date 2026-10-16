@@ -5,6 +5,7 @@ pelacakan jarum secara real-time, evaluasi trigger hit, dan penanganan hotkey.
 
 import collections
 from datetime import datetime
+import gc
 import time
 from typing import Optional
 import cv2
@@ -90,6 +91,7 @@ class BotEngine:
     self.needle_prev_time = None
     self.needle_confirm_count = 0
     self.frame_buffer.clear()
+    gc.enable()
     if reason:
       print(f"[IDLE] {reason}")
 
@@ -194,6 +196,7 @@ class BotEngine:
             self.locked_target_angle = detected_target
             self.locked_target_width = max(4.0, target_w)
             self.current_state = self.STATE_TRACKING
+            gc.disable()  # Pause GC saat jarum berputar agar deterministik tanpa micro-stutter
             print(
                 f"[TARGET] Balok putih terdeteksi di:"
                 f" {self.locked_target_angle:.1f}° (Lebar:"
@@ -365,6 +368,7 @@ class BotEngine:
               print()
 
             self.current_state = self.STATE_COOLDOWN
+            gc.enable()  # Re-enable GC saat cooldown
             self.cooldown_until = time.perf_counter() + 0.50
             continue
 
