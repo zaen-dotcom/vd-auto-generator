@@ -56,3 +56,16 @@ OUT_X, OUT_Y = create_ring_coords(R_OUT)
 # Set True jika ingin merekam frame dan membuka jendela GUI visualizer saat hit
 # Set False untuk mematikan capture foto agar disk tidak penuh & performa maksimal
 ENABLE_DEBUG_CAPTURES = False
+
+# =====================================================================
+# 3. FITUR CROSSHAIR PISTOL (TITIK HIJAU OVERLAY)
+# =====================================================================
+# Set True untuk menampilkan titik hijau kecil di tengah layar untuk mempermudah bidikan pistol
+ENABLE_CROSSHAIR = True
+# Titik tengah aim tembakan pistol (default: tengah monitor 1920x1080 = 960, 540)
+CROSSHAIR_X = 960
+CROSSHAIR_Y = 540
+# Ukuran radius titik hijau (2 = titik kecil tajam/presisi, 3 = sedikit lebih tebal)
+CROSSHAIR_RADIUS = 2
+# Warna titik (Hex): hijau neon terang dengan outline hitam
+CROSSHAIR_COLOR = "#00FF66"

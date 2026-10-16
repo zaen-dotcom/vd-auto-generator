@@ -9,10 +9,12 @@ from vd_bot.config import (
     R_MID,
     R_OUT,
 )
+from vd_bot.crosshair import CrosshairOverlay
 from vd_bot.engine import BotEngine
 
 __all__ = [
     "BotEngine",
+    "CrosshairOverlay",
     "CENTER_X",
     "CENTER_Y",
     "R_MID",

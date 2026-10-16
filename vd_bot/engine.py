@@ -14,8 +14,13 @@ import mss
 import numpy as np
 
 from vd_bot.config import (
+    CROSSHAIR_COLOR,
+    CROSSHAIR_RADIUS,
+    CROSSHAIR_X,
+    CROSSHAIR_Y,
     CX,
     CY,
+    ENABLE_CROSSHAIR,
     ENABLE_DEBUG_CAPTURES,
     HARDWARE_LATENCY_SEC,
     IN_X,
@@ -26,6 +31,7 @@ from vd_bot.config import (
     OUT_X,
     OUT_Y,
 )
+from vd_bot.crosshair import CrosshairOverlay
 from vd_bot.detector import (
     detect_red_needle,
     detect_white_target,
@@ -57,6 +63,17 @@ class BotEngine:
     self.request_calib: bool = False
     self.request_exit: bool = False
 
+    self.crosshair: Optional[CrosshairOverlay] = (
+        CrosshairOverlay(
+            x=CROSSHAIR_X,
+            y=CROSSHAIR_Y,
+            radius=CROSSHAIR_RADIUS,
+            color=CROSSHAIR_COLOR,
+        )
+        if ENABLE_CROSSHAIR
+        else None
+    )
+
     self.current_state: str = self.STATE_IDLE
     self.locked_target_angle: Optional[float] = None
     self.locked_target_width: float = 6.0
@@ -68,6 +85,8 @@ class BotEngine:
     self.needle_confirm_count: int = 0
     self.last_ui_seen_time: float = 0.0
     self.cooldown_until: float = 0.0
+    self.last_hit_target_angle: Optional[float] = None
+    self.last_hit_time: float = 0.0
     self.hit_counter: int = 0
 
     self.frame_buffer = collections.deque(maxlen=10)
@@ -90,13 +109,21 @@ class BotEngine:
     self.needle_prev_angle = None
     self.needle_prev_time = None
     self.needle_confirm_count = 0
+    self.last_hit_target_angle = None
     self.frame_buffer.clear()
     gc.enable()
     if reason:
       print(f"[IDLE] {reason}")
 
+  def toggle_crosshair(self):
+    if self.crosshair:
+      self.crosshair.toggle()
+      status = "ON (Aktif)" if self.crosshair.visible else "OFF (Disembunyikan)"
+      print(f"\n[CROSSHAIR] Titik Hijau: {status}")
+
   def register_hotkeys(self):
     keyboard.add_hotkey("insert", self.toggle_pause)
+    keyboard.add_hotkey("f6", self.toggle_crosshair)
     keyboard.add_hotkey("x", self.trigger_calib)
     keyboard.add_hotkey("o", open_capture_folder)
     keyboard.add_hotkey("end", self.trigger_exit)
@@ -128,16 +155,24 @@ class BotEngine:
     debug_mode_text = (
         "AKTIF" if ENABLE_DEBUG_CAPTURES else "NONAKTIF (Performa Maksimal & Hemat Disk)"
     )
-    print(f"  - Debug Captures: {debug_mode_text}")
+    crosshair_mode_text = (
+        "AKTIF (Tekan 'F6' untuk Toggle On/Off)"
+        if ENABLE_CROSSHAIR
+        else "NONAKTIF"
+    )
+    print(f"  - Debug Captures  : {debug_mode_text}")
+    print(f"  - Crosshair Pistol: {crosshair_mode_text}")
     print("----------------------------------------------------------")
     print(" Arsitektur:")
-    print("  - Modular: config, input_controller, detector, visualizer, engine")
+    print("  - Modular: config, input_controller, detector, visualizer, engine, crosshair")
     print("  - Keamanan: Center UI validation & anti-freeze cooldown timeout")
     print("==========================================================\n")
 
   def start(self):
     if ENABLE_DEBUG_CAPTURES:
       start_gui_thread()
+    if self.crosshair:
+      self.crosshair.start()
     self.register_hotkeys()
     self.print_banner()
 
@@ -160,15 +195,54 @@ class BotEngine:
           self.save_calibration_preview(frame, now)
           self.request_calib = False
 
-        # 2. State: COOLDOWN (Anti-Freeze: hard timeout & cek UI center)
+        # 2. State: COOLDOWN (Anti-Double-Click & Deteksi Combo Killer Perk Tanpa Jeda)
         if self.current_state == self.STATE_COOLDOWN:
           if now < self.cooldown_until:
-            time.sleep(0.005)
+            time.sleep(0.002)
+            continue
+
+          ui_still_active = is_skillcheck_ui_present(frame)
+          if not ui_still_active:
+            self.reset_state_to_idle("Skill check selesai. Siap menunggu berikutnya...")
+            continue
+
+          # UI masih aktif di layar! Cek apakah balok putih baru sudah muncul
+          detected_target, target_w = detect_white_target(frame)
+          if detected_target is None:
+            # Balok putih lama sudah hilang/fading
+            self.last_hit_target_angle = None
+            if (now - self.last_hit_time) > 0.35:
+              self.reset_state_to_idle()
+            continue
+
+          # Ada balok putih terdeteksi. Cek apakah ini target baru (Combo Perk)
+          is_new_target = False
+          if self.last_hit_target_angle is None:
+            is_new_target = True
+          else:
+            diff = abs((detected_target - self.last_hit_target_angle + 180) % 360 - 180)
+            if diff > 12.0:
+              is_new_target = True
+
+          if is_new_target:
+            # Skill check berikutnya langsung muncul tanpa jeda!
+            self.target_samples = [detected_target]
+            self.locked_target_angle = detected_target
+            self.locked_target_width = max(4.0, target_w)
+            self.needle_prev_angle = None
+            self.needle_prev_time = None
+            self.needle_confirm_count = 0
+            self.current_state = self.STATE_TRACKING
+            gc.disable()
+            print(
+                f"\n[COMBO PERK] Skill check baru terdeteksi di:"
+                f" {self.locked_target_angle:.1f}°! Mengunci target..."
+            )
             continue
           else:
-            ui_still_active = is_skillcheck_ui_present(frame)
-            if not ui_still_active or now > (self.cooldown_until + 0.35):
-              self.reset_state_to_idle("Skill check selesai. Siap menunggu berikutnya...")
+            # Masih balok putih lama yang sedang fading out, tunggu sampai hilang
+            if (now - self.last_hit_time) > 0.35:
+              self.reset_state_to_idle()
             continue
 
         # 3. Validasi UI Skill Check (Anti-Ghost Click pada Baju/Topi/Darah)
@@ -367,9 +441,15 @@ class BotEngine:
             else:
               print()
 
+            self.last_hit_target_angle = hit_target_angle
+            self.last_hit_time = hit_moment_time
             self.current_state = self.STATE_COOLDOWN
             gc.enable()  # Re-enable GC saat cooldown
-            self.cooldown_until = time.perf_counter() + 0.50
+            self.cooldown_until = time.perf_counter() + 0.08  # 80ms refractory anti-double-click
+            self.locked_target_angle = None
+            self.target_samples.clear()
+            self.needle_prev_angle = None
+            self.needle_confirm_count = 0
             continue
 
         elapsed = time.perf_counter() - loop_start_time
@@ -378,4 +458,6 @@ class BotEngine:
 
     if ENABLE_DEBUG_CAPTURES:
       stop_gui_thread()
+    if self.crosshair:
+      self.crosshair.stop()
     print("[INFO] Program selesai. Sampai jumpa!")
