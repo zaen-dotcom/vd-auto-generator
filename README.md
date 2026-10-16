@@ -4,6 +4,29 @@ Bot otomatis presisi tinggi untuk memenangkan skill check generator pada game Ro
 
 ---
 
+## Struktur Proyek Modular
+
+Kode telah diorganisasikan secara profesional ke dalam arsitektur package modular:
+
+```text
+VD Auto Generator/
+├── vd_bot/
+│   ├── __init__.py           # Package exports
+│   ├── config.py             # Kalibrasi pusat, radius, ROI, dan tabel koordinat
+│   ├── input_controller.py   # Direct Windows hardware scancode (SendInput) & high-precision timer
+│   ├── math_utils.py         # Utilitas circular mean, signed angle diff, & clustering sirkular
+│   ├── detector.py           # Center UI validator, deteksi balok putih, & pelacak jarum merah
+│   ├── visualizer.py         # Thread visualizer GUI live & generator image montage debug
+│   └── engine.py             # BotEngine (State Machine IDLE -> TRACKING -> COOLDOWN)
+├── main.py                   # Entry point utama eksekusi program
+├── vd_perfect_bot.py         # Entry point backward-compatible (memanggil main.py)
+├── start.bat                 # Script batch launcher dengan auto elevate Administrator
+├── requirements.txt          # Dependensi Python yang dibutuhkan
+└── README.md                 # Dokumentasi proyek
+```
+
+---
+
 ## Fitur Utama
 
 1. **Center UI Validator (Anti-Ghost Click)**:
@@ -38,8 +61,8 @@ Bot otomatis presisi tinggi untuk memenangkan skill check generator pada game Ro
 
 1. Clone repositori ini:
    ```bash
-   git clone <URL_REPOSITORY_ANDA>
-   cd "VD Auto Generator"
+   git clone https://github.com/zaen-dotcom/vd-auto-generator.git
+   cd "vd-auto-generator"
    ```
 
 2. Instal dependensi:
@@ -57,8 +80,9 @@ start.bat
 ```
 Atau langsung jalankan via terminal administrator:
 ```powershell
-python vd_perfect_bot.py
+python main.py
 ```
+*(Atau `python vd_perfect_bot.py`)*
 
 ---
 

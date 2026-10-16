@@ -26,5 +26,5 @@ if '%errorlevel%' NEQ '0' (
 echo ==========================================================
 echo  MENJALANKAN BOT SKILL CHECK VIOLENCE DISTRICT...
 echo ==========================================================
-python vd_perfect_bot.py
+python main.py
 pause
