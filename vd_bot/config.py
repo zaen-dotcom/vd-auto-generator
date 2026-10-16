@@ -49,3 +49,10 @@ NEEDLE_COORDS = [create_ring_coords(r) for r in NEEDLE_RADII]
 IN_X, IN_Y = create_ring_coords(R_IN)
 MID_X, MID_Y = create_ring_coords(R_MID)
 OUT_X, OUT_Y = create_ring_coords(R_OUT)
+
+# =====================================================================
+# 2. FITUR DEBUG & CAPTURES
+# =====================================================================
+# Set True jika ingin merekam frame dan membuka jendela GUI visualizer saat hit
+# Set False untuk mematikan capture foto agar disk tidak penuh & performa maksimal
+ENABLE_DEBUG_CAPTURES = False

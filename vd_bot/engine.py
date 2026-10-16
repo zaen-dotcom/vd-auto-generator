@@ -15,6 +15,7 @@ import numpy as np
 from vd_bot.config import (
     CX,
     CY,
+    ENABLE_DEBUG_CAPTURES,
     HARDWARE_LATENCY_SEC,
     IN_X,
     IN_Y,
@@ -122,12 +123,10 @@ class BotEngine:
   def print_banner(self):
     print("==========================================================")
     print("   BOT SKILL CHECK VD (MODULAR & HIGH ACCURACY ARCH)     ")
-    print("==========================================================")
-    print(" Hotkeys:")
-    print("  - [INSERT] : Pause / Resume Bot")
-    print("  - [X]      : Simpan gambar kalibrasi 'cek_kalibrasi.png'")
-    print("  - [O]      : Buka folder capture screenshot terakhir di Explorer")
-    print("  - [END]    : Keluar dari program")
+    debug_mode_text = (
+        "AKTIF" if ENABLE_DEBUG_CAPTURES else "NONAKTIF (Performa Maksimal & Hemat Disk)"
+    )
+    print(f"  - Debug Captures: {debug_mode_text}")
     print("----------------------------------------------------------")
     print(" Arsitektur:")
     print("  - Modular: config, input_controller, detector, visualizer, engine")
@@ -135,7 +134,8 @@ class BotEngine:
     print("==========================================================\n")
 
   def start(self):
-    start_gui_thread()
+    if ENABLE_DEBUG_CAPTURES:
+      start_gui_thread()
     self.register_hotkeys()
     self.print_banner()
 
@@ -239,15 +239,16 @@ class BotEngine:
                 self.locked_target_angle, detected_needle
             )
 
-        # Simpan frame ke rolling buffer untuk debug visualizer
-        self.frame_buffer.append({
-            "img": frame,
-            "time": now,
-            "needle_angle": detected_needle,
-            "target_angle": self.locked_target_angle,
-            "dist": cw_dist,
-            "speed": self.needle_speed,
-        })
+        # Simpan frame ke rolling buffer hanya jika debug visualizer diaktifkan
+        if ENABLE_DEBUG_CAPTURES:
+          self.frame_buffer.append({
+              "img": frame,
+              "time": now,
+              "needle_angle": detected_needle,
+              "target_angle": self.locked_target_angle,
+              "dist": cw_dist,
+              "speed": self.needle_speed,
+          })
 
         # 7. Evaluasi Trigger Eksekusi Spasi (Predictive Lead + Stutter Fail-Safe)
         if self.locked_target_angle is not None and detected_needle is not None:
@@ -280,58 +281,18 @@ class BotEngine:
             if remaining_delay > 0.001:
               precise_sleep(remaining_delay)
 
-            # EKSEKUSI KLIK SPASI HARDWARE
+            # EKSEKUSI KLIK SPASI HARDWARE (INSTAN)
             press_space_fast()
-
-            hit_record = {
-                "img": frame,
-                "time": hit_moment_time,
-                "needle_angle": hit_needle_angle,
-                "target_angle": hit_target_angle,
-                "dist": cw_dist,
-                "speed": self.needle_speed,
-            }
-
-            post_records = []
-            for _ in range(2):
-              time.sleep(0.025)
-              p_frame = np.array(sct.grab(MONITOR_ROI))
-              p_time = time.perf_counter()
-              p_needle, _ = detect_red_needle(p_frame)
-              post_records.append({
-                  "img": p_frame,
-                  "time": p_time,
-                  "needle_angle": p_needle,
-                  "target_angle": hit_target_angle,
-                  "dist": (
-                      clockwise_distance(hit_target_angle, p_needle)
-                      if p_needle
-                      else None
-                  ),
-              })
-
-            pre_records = (
-                list(self.frame_buffer)[-5:-1]
-                if len(self.frame_buffer) >= 5
-                else list(self.frame_buffer)[:-1]
-            )
 
             expected_hit_angle = (
                 hit_needle_angle + self.needle_speed * HARDWARE_LATENCY_SEC
             ) % 360
             offset = (expected_hit_angle - hit_target_angle + 180) % 360 - 180
 
-            stats = {
-                "hit_count": self.hit_counter,
-                "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:12],
-                "target_deg": hit_target_angle,
-                "needle_deg": hit_needle_angle,
-                "offset_deg": offset,
-                "speed_deg_s": self.needle_speed,
-            }
-
-            saved_dir, montage_file, eval_str = build_and_save_debug_package(
-                pre_records, hit_record, post_records, stats
+            eval_str = (
+                "PERFECT HIT (SEMPURNA!)"
+                if abs(offset) <= 3.5
+                else ("GOOD HIT" if abs(offset) <= 6.5 else "MISS/LATE")
             )
 
             print(
@@ -346,11 +307,62 @@ class BotEngine:
                 f"  | Kecepatan Jarum: {self.needle_speed:.1f}°/s | Estimasi"
                 f" Offset: {offset:+.2f}°"
             )
-            print(f"  | Capture Disimpan: {saved_dir}")
-            print(
-                "  | [INFO] Preview visual capture telah ditampilkan di"
-                " jendela GUI!\n"
-            )
+
+            # Simpan paket capture visual hanya jika fitur debug diaktifkan
+            if ENABLE_DEBUG_CAPTURES:
+              hit_record = {
+                  "img": frame,
+                  "time": hit_moment_time,
+                  "needle_angle": hit_needle_angle,
+                  "target_angle": hit_target_angle,
+                  "dist": cw_dist,
+                  "speed": self.needle_speed,
+              }
+
+              post_records = []
+              for _ in range(2):
+                time.sleep(0.025)
+                p_frame = np.array(sct.grab(MONITOR_ROI))
+                p_time = time.perf_counter()
+                p_needle, _ = detect_red_needle(p_frame)
+                post_records.append({
+                    "img": p_frame,
+                    "time": p_time,
+                    "needle_angle": p_needle,
+                    "target_angle": hit_target_angle,
+                    "dist": (
+                        clockwise_distance(hit_target_angle, p_needle)
+                        if p_needle
+                        else None
+                    ),
+                })
+
+              pre_records = (
+                  list(self.frame_buffer)[-5:-1]
+                  if len(self.frame_buffer) >= 5
+                  else list(self.frame_buffer)[:-1]
+              )
+
+              stats = {
+                  "hit_count": self.hit_counter,
+                  "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:12],
+                  "target_deg": hit_target_angle,
+                  "needle_deg": hit_needle_angle,
+                  "offset_deg": offset,
+                  "speed_deg_s": self.needle_speed,
+              }
+
+              saved_dir, montage_file, eval_str = build_and_save_debug_package(
+                  pre_records, hit_record, post_records, stats
+              )
+
+              print(f"  | Capture Disimpan: {saved_dir}")
+              print(
+                  "  | [INFO] Preview visual capture telah ditampilkan di"
+                  " jendela GUI!\n"
+              )
+            else:
+              print()
 
             self.current_state = self.STATE_COOLDOWN
             self.cooldown_until = time.perf_counter() + 0.50
@@ -360,5 +372,6 @@ class BotEngine:
         if elapsed < 0.003:
           time.sleep(0.001)
 
-    stop_gui_thread()
+    if ENABLE_DEBUG_CAPTURES:
+      stop_gui_thread()
     print("[INFO] Program selesai. Sampai jumpa!")
