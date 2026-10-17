@@ -30,6 +30,7 @@ from vd_bot.config import (
     MONITOR_ROI,
     OUT_X,
     OUT_Y,
+    R_MID,
 )
 from vd_bot.crosshair import CrosshairOverlay
 from vd_bot.detector import (
