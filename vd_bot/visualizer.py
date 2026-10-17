@@ -60,17 +60,25 @@ def gui_worker_loop():
   cv2.destroyAllWindows()
 
 
-def start_gui_thread() -> threading.Thread:
-  """Memulai background thread untuk GUI visualizer OpenCV."""
+gui_thread_instance: Optional[threading.Thread] = None
+
+
+def start_gui_thread() -> Optional[threading.Thread]:
+  """Memulai background thread untuk GUI visualizer OpenCV (idempotent)."""
+  global gui_thread_instance
+  if gui_thread_instance is not None and gui_thread_instance.is_alive():
+    return gui_thread_instance
   gui_stop_event.clear()
-  gui_thread = threading.Thread(target=gui_worker_loop, daemon=True)
-  gui_thread.start()
-  return gui_thread
+  gui_thread_instance = threading.Thread(target=gui_worker_loop, daemon=True)
+  gui_thread_instance.start()
+  return gui_thread_instance
 
 
 def stop_gui_thread():
   """Menghentikan thread GUI visualizer."""
+  global gui_thread_instance
   gui_stop_event.set()
+  gui_thread_instance = None
 
 
 def open_capture_folder():

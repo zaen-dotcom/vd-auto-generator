@@ -63,6 +63,9 @@ class BotEngine:
     self.request_calib: bool = False
     self.request_exit: bool = False
 
+    self.enable_debug_captures: bool = ENABLE_DEBUG_CAPTURES
+    self.ui_active_logged: bool = False
+
     self.crosshair: Optional[CrosshairOverlay] = (
         CrosshairOverlay(
             x=CROSSHAIR_X,
@@ -110,10 +113,21 @@ class BotEngine:
     self.needle_prev_time = None
     self.needle_confirm_count = 0
     self.last_hit_target_angle = None
+    self.ui_active_logged = False
     self.frame_buffer.clear()
     gc.enable()
     if reason:
       print(f"[IDLE] {reason}")
+
+  def toggle_debug_captures(self):
+    self.enable_debug_captures = not self.enable_debug_captures
+    if self.enable_debug_captures:
+      start_gui_thread()
+      status = "ON (Aktif - Menyimpan foto & menampilkan GUI visualizer)"
+    else:
+      stop_gui_thread()
+      status = "OFF (Nonaktif - Hemat disk & performa maksimal)"
+    print(f"\n[DEBUG CAPTURES] Status: {status}")
 
   def toggle_crosshair(self):
     if self.crosshair:
@@ -123,6 +137,7 @@ class BotEngine:
 
   def register_hotkeys(self):
     keyboard.add_hotkey("insert", self.toggle_pause)
+    keyboard.add_hotkey("f7", self.toggle_debug_captures)
     keyboard.add_hotkey("f6", self.toggle_crosshair)
     keyboard.add_hotkey("x", self.trigger_calib)
     keyboard.add_hotkey("o", open_capture_folder)
@@ -150,26 +165,32 @@ class BotEngine:
     )
 
   def print_banner(self):
+    captures_text = (
+        "ON (Aktif - Tekan 'F7' untuk Matikan)"
+        if self.enable_debug_captures
+        else "OFF (Nonaktif - Tekan 'F7' untuk Aktifkan)"
+    )
+    crosshair_text = (
+        "ON (Aktif - Tekan 'F6' untuk Matikan)"
+        if (self.crosshair and self.crosshair.visible)
+        else "OFF (Nonaktif - Tekan 'F6' untuk Aktifkan)"
+    )
     print("==========================================================")
     print("   BOT SKILL CHECK VD (MODULAR & HIGH ACCURACY ARCH)     ")
-    debug_mode_text = (
-        "AKTIF" if ENABLE_DEBUG_CAPTURES else "NONAKTIF (Performa Maksimal & Hemat Disk)"
-    )
-    crosshair_mode_text = (
-        "AKTIF (Tekan 'F6' untuk Toggle On/Off)"
-        if ENABLE_CROSSHAIR
-        else "NONAKTIF"
-    )
-    print(f"  - Debug Captures  : {debug_mode_text}")
-    print(f"  - Crosshair Pistol: {crosshair_mode_text}")
+    print(f"  - Debug Captures  : {captures_text}")
+    print(f"  - Crosshair Pistol: {crosshair_text}")
     print("----------------------------------------------------------")
-    print(" Arsitektur:")
-    print("  - Modular: config, input_controller, detector, visualizer, engine, crosshair")
-    print("  - Keamanan: Center UI validation & anti-freeze cooldown timeout")
+    print(" Kontrol Hotkey:")
+    print("  - [F7]     : Toggle Debug Captures & GUI (On/Off - Default OFF)")
+    print("  - [F6]     : Toggle Crosshair Pistol (On/Off)")
+    print("  - [Insert] : Pause / Resume Bot")
+    print("  - [O]      : Buka Folder Hasil Debug Captures di Explorer")
+    print("  - [X]      : Snapshot Kalibrasi Lingkaran (cek_kalibrasi.png)")
+    print("  - [End]    : Keluar dari Bot")
     print("==========================================================\n")
 
   def start(self):
-    if ENABLE_DEBUG_CAPTURES:
+    if self.enable_debug_captures:
       start_gui_thread()
     if self.crosshair:
       self.crosshair.start()
@@ -249,11 +270,16 @@ class BotEngine:
         ui_present = is_skillcheck_ui_present(frame)
 
         if not ui_present:
+          self.ui_active_logged = False
           if self.current_state == self.STATE_TRACKING:
             if (now - self.last_ui_seen_time) > 0.15:
               self.reset_state_to_idle()
           time.sleep(0.002)
           continue
+
+        if not self.ui_active_logged:
+          print(f"\n[UI DETECTED] Skill check aktif di layar! (Container gelap & ikon [_] valid)")
+          self.ui_active_logged = True
 
         self.last_ui_seen_time = now
 
@@ -272,9 +298,8 @@ class BotEngine:
             self.current_state = self.STATE_TRACKING
             gc.disable()  # Pause GC saat jarum berputar agar deterministik tanpa micro-stutter
             print(
-                f"[TARGET] Balok putih terdeteksi di:"
-                f" {self.locked_target_angle:.1f}° (Lebar:"
-                f" {self.locked_target_width:.1f}°)"
+                f"[TARGET LOCKED] Balok putih terkunci di:"
+                f" {self.locked_target_angle:.1f}° | Lebar: {self.locked_target_width:.1f}° | R_MID: {R_MID}px"
             )
           else:
             signed_dist = (
@@ -317,7 +342,7 @@ class BotEngine:
             )
 
         # Simpan frame ke rolling buffer hanya jika debug visualizer diaktifkan
-        if ENABLE_DEBUG_CAPTURES:
+        if self.enable_debug_captures:
           self.frame_buffer.append({
               "img": frame,
               "time": now,
@@ -334,6 +359,7 @@ class BotEngine:
           )
           should_press = False
           remaining_delay = 0.0
+          trigger_mode = "UNKNOWN"
 
           # Kasus A: Jarum sedang mendekati target dalam jarak 35 derajat
           if -35.0 <= signed_err < 0.0:
@@ -343,11 +369,13 @@ class BotEngine:
             if time_to_hit <= (HARDWARE_LATENCY_SEC + 0.010):
               should_press = True
               remaining_delay = max(0.0, time_to_hit - HARDWARE_LATENCY_SEC)
+              trigger_mode = "PREDICTIVE_LEAD (Mendekati target)"
 
           # Kasus B (Fail-Safe Stutter): Jarum sudah di balok putih
           elif 0.0 <= signed_err <= (self.locked_target_width / 2.0 + 1.5):
             should_press = True
             remaining_delay = 0.0
+            trigger_mode = "FAILSAFE_INSIDE (Jarum di balok putih)"
 
           if should_press:
             self.hit_counter += 1
@@ -361,32 +389,29 @@ class BotEngine:
             # EKSEKUSI KLIK SPASI HARDWARE (INSTAN)
             press_space_fast()
 
-            expected_hit_angle = (
-                hit_needle_angle + self.needle_speed * HARDWARE_LATENCY_SEC
-            ) % 360
+            lead_deg = self.needle_speed * HARDWARE_LATENCY_SEC
+            expected_hit_angle = (hit_needle_angle + lead_deg) % 360
             offset = (expected_hit_angle - hit_target_angle + 180) % 360 - 180
 
             eval_str = (
                 "PERFECT HIT (SEMPURNA!)"
                 if abs(offset) <= 3.5
-                else ("GOOD HIT" if abs(offset) <= 6.5 else "MISS/LATE")
+                else ("GOOD HIT" if abs(offset) <= 6.5 else ("MISS (TERLALU CEPAT)" if offset < -6.5 else "MISS (TERLAMBAT)"))
             )
 
-            print(
-                f"\n[TRIGGER HIT #{self.hit_counter}] >>> SPACE DITEKAN! <<<"
-                f" [{eval_str}]"
-            )
-            print(
-                f"  | Target: {hit_target_angle:.1f}° | Jarum saat klik:"
-                f" {hit_needle_angle:.1f}°"
-            )
-            print(
-                f"  | Kecepatan Jarum: {self.needle_speed:.1f}°/s | Estimasi"
-                f" Offset: {offset:+.2f}°"
-            )
+            print("\n" + "=" * 64)
+            print(f"[TRIGGER HIT #{self.hit_counter}] >>> SPACE DITEKAN! <<< [{eval_str}]")
+            print("-" * 64)
+            print(f"  * Mode Trigger        : {trigger_mode}")
+            print(f"  * Posisi Target       : {hit_target_angle:.1f}° (Lebar: {self.locked_target_width:.1f}°)")
+            print(f"  * Posisi Jarum        : {hit_needle_angle:.1f}° (Sisa jarak: {abs(signed_err):.1f}°)")
+            print(f"  * Kecepatan Jarum     : {self.needle_speed:.1f}°/s | Lead Kompensasi: {lead_deg:.2f}°")
+            print(f"  * Hardware Latency    : {HARDWARE_LATENCY_SEC*1000:.1f}ms | Micro-Delay: {remaining_delay*1000:.1f}ms")
+            print(f"  * Estimasi Kontak     : {expected_hit_angle:.1f}° -> Offset Deviasi: {offset:+.2f}°")
+            print(f"  * Evaluasi Ketepatan  : {eval_str}")
 
             # Simpan paket capture visual hanya jika fitur debug diaktifkan
-            if ENABLE_DEBUG_CAPTURES:
+            if self.enable_debug_captures:
               hit_record = {
                   "img": frame,
                   "time": hit_moment_time,
@@ -433,13 +458,11 @@ class BotEngine:
                   pre_records, hit_record, post_records, stats
               )
 
-              print(f"  | Capture Disimpan: {saved_dir}")
-              print(
-                  "  | [INFO] Preview visual capture telah ditampilkan di"
-                  " jendela GUI!\n"
-              )
+              print(f"  * Debug Captures      : DISIMPAN di {saved_dir}")
+              print("  * GUI Viewer          : Preview montage tampil di layar")
             else:
-              print()
+              print("  * Debug Captures      : OFF (Tekan F7 untuk merekam frame foto jika diperlukan)")
+            print("=" * 64 + "\n")
 
             self.last_hit_target_angle = hit_target_angle
             self.last_hit_time = hit_moment_time

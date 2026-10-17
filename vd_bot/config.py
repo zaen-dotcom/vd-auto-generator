@@ -54,8 +54,9 @@ OUT_X, OUT_Y = create_ring_coords(R_OUT)
 # 2. FITUR DEBUG & CAPTURES
 # =====================================================================
 # Set True jika ingin merekam frame dan membuka jendela GUI visualizer saat hit
-# Set False untuk mematikan capture foto agar disk tidak penuh & performa maksimal
-ENABLE_DEBUG_CAPTURES = True
+# Set False untuk mematikan capture foto agar disk tidak penuh & performa maksimal (Default: False)
+# Dapat di-toggle On/Off sewaktu-waktu saat in-game dengan tombol [F7]
+ENABLE_DEBUG_CAPTURES = False
 
 # =====================================================================
 # 3. FITUR CROSSHAIR PISTOL (TITIK HIJAU OVERLAY)
