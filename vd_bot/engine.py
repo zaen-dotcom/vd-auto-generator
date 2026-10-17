@@ -31,6 +31,8 @@ from vd_bot.config import (
     OUT_X,
     OUT_Y,
     R_MID,
+    SCREEN_CENTER_X,
+    SCREEN_CENTER_Y,
 )
 from vd_bot.crosshair import CrosshairOverlay
 from vd_bot.detector import (
@@ -77,6 +79,25 @@ class BotEngine:
         if ENABLE_CROSSHAIR
         else None
     )
+
+    self.crosshair_presets = [
+        {
+            "name": "Preset 1: Populer VD (Offset X=-4, Y=+10)",
+            "x": SCREEN_CENTER_X - 4,
+            "y": SCREEN_CENTER_Y + 10,
+        },
+        {
+            "name": "Preset 2: Lebih Kiri VD (Offset X=-20, Y=+10)",
+            "x": SCREEN_CENTER_X - 20,
+            "y": SCREEN_CENTER_Y + 10,
+        },
+        {
+            "name": "Preset 3: Pusat Layar Murni (Offset X=0, Y=0)",
+            "x": SCREEN_CENTER_X,
+            "y": SCREEN_CENTER_Y,
+        },
+    ]
+    self.current_crosshair_preset_idx = 0
 
     self.current_state: str = self.STATE_IDLE
     self.locked_target_angle: Optional[float] = None
@@ -136,10 +157,23 @@ class BotEngine:
       status = "ON (Aktif)" if self.crosshair.visible else "OFF (Disembunyikan)"
       print(f"\n[CROSSHAIR] Titik Hijau: {status}")
 
+  def cycle_crosshair_preset(self):
+    if not self.crosshair:
+      return
+    self.current_crosshair_preset_idx = (
+        self.current_crosshair_preset_idx + 1
+    ) % len(self.crosshair_presets)
+    preset = self.crosshair_presets[self.current_crosshair_preset_idx]
+    self.crosshair.set_position(preset["x"], preset["y"])
+    print(
+        f"\n[CROSSHAIR PRESET] Ganti ke -> {preset['name']} | Koordinat: ({preset['x']}, {preset['y']})"
+    )
+
   def register_hotkeys(self):
     keyboard.add_hotkey("insert", self.toggle_pause)
     keyboard.add_hotkey("f7", self.toggle_debug_captures)
     keyboard.add_hotkey("f6", self.toggle_crosshair)
+    keyboard.add_hotkey("f8", self.cycle_crosshair_preset)
     keyboard.add_hotkey("x", self.trigger_calib)
     keyboard.add_hotkey("o", open_capture_folder)
     keyboard.add_hotkey("end", self.trigger_exit)
@@ -171,8 +205,13 @@ class BotEngine:
         if self.enable_debug_captures
         else "OFF (Nonaktif - Tekan 'F7' untuk Aktifkan)"
     )
+    active_preset = (
+        self.crosshair_presets[self.current_crosshair_preset_idx]["name"]
+        if self.crosshair
+        else ""
+    )
     crosshair_text = (
-        "ON (Aktif - Tekan 'F6' untuk Matikan)"
+        f"ON ({active_preset} - Tekan 'F6' Matikan / 'F8' Ganti Preset)"
         if (self.crosshair and self.crosshair.visible)
         else "OFF (Nonaktif - Tekan 'F6' untuk Aktifkan)"
     )
@@ -184,6 +223,7 @@ class BotEngine:
     print(" Kontrol Hotkey:")
     print("  - [F7]     : Toggle Debug Captures & GUI (On/Off - Default OFF)")
     print("  - [F6]     : Toggle Crosshair Pistol (On/Off)")
+    print("  - [F8]     : Ganti Preset Crosshair (X=-4, Y=10 <-> X=-20, Y=10)")
     print("  - [Insert] : Pause / Resume Bot")
     print("  - [O]      : Buka Folder Hasil Debug Captures di Explorer")
     print("  - [X]      : Snapshot Kalibrasi Lingkaran (cek_kalibrasi.png)")

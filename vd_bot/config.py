@@ -63,10 +63,26 @@ ENABLE_DEBUG_CAPTURES = False
 # =====================================================================
 # Set True untuk menampilkan titik hijau kecil di tengah layar untuk mempermudah bidikan pistol
 ENABLE_CROSSHAIR = True
-# Titik tengah aim tembakan pistol (default: tengah monitor 1920x1080 = 960, 540)
-CROSSHAIR_X = 960
-CROSSHAIR_Y = 540
+
+# Resolusi Layar & Screen Center
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+SCREEN_CENTER_X = SCREEN_WIDTH // 2  # 960
+SCREEN_CENTER_Y = SCREEN_HEIGHT // 2  # 540
+
+# Offset Khusus Bidikan Pistol Roblox Violence District (VD)
+# Kamera Roblox memiliki sudut over-the-shoulder sehingga arah peluru pistol bergeser dari tengah layar:
+# - Preset 1: Offset X = -4,  Y = +10 (Standar populer VD Pistol)
+# - Preset 2: Offset X = -20, Y = +10 (Kamera lebih ke kiri / resolusi atau FOV tertentu)
+CROSSHAIR_OFFSET_X = -4
+CROSSHAIR_OFFSET_Y = 10
+
+# Titik koordinat aim tembakan pistol aktual di layar
+CROSSHAIR_X = SCREEN_CENTER_X + CROSSHAIR_OFFSET_X  # 956
+CROSSHAIR_Y = SCREEN_CENTER_Y + CROSSHAIR_OFFSET_Y  # 550
+
 # Ukuran radius titik hijau (2 = titik kecil tajam/presisi, 3 = sedikit lebih tebal)
 CROSSHAIR_RADIUS = 2
 # Warna titik (Hex): hijau neon terang dengan outline hitam
 CROSSHAIR_COLOR = "#00FF66"
+

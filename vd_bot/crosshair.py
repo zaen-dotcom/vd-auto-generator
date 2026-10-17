@@ -114,7 +114,18 @@ class CrosshairOverlay:
     else:
       self.root.after(0, self.root.withdraw)
 
+  def set_position(self, x: int, y: int):
+    """Mengubah posisi titik crosshair di layar secara dinamis."""
+    self.x = x
+    self.y = y
+    if self.root:
+      size = max(16, (self.radius + 4) * 2)
+      win_x = int(round(self.x - size / 2.0))
+      win_y = int(round(self.y - size / 2.0))
+      self.root.after(0, lambda: self.root.geometry(f"{size}x{size}+{win_x}+{win_y}"))
+
   def stop(self):
     """Menutup jendela crosshair."""
     if self.root:
       self.root.after(0, self.root.destroy)
+
