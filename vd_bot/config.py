@@ -55,7 +55,7 @@ OUT_X, OUT_Y = create_ring_coords(R_OUT)
 # =====================================================================
 # Set True jika ingin merekam frame dan membuka jendela GUI visualizer saat hit
 # Set False untuk mematikan capture foto agar disk tidak penuh & performa maksimal
-ENABLE_DEBUG_CAPTURES = False
+ENABLE_DEBUG_CAPTURES = True
 
 # =====================================================================
 # 3. FITUR CROSSHAIR PISTOL (TITIK HIJAU OVERLAY)
