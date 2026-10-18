@@ -20,6 +20,8 @@ from vd_bot.config import (
     CROSSHAIR_Y,
     CX,
     CY,
+    DOUBLE_CLICK_THRESHOLD,
+    ENABLE_AUTO_HOLD_LMB,
     ENABLE_CROSSHAIR,
     ENABLE_DEBUG_CAPTURES,
     HARDWARE_LATENCY_SEC,
@@ -41,6 +43,7 @@ from vd_bot.detector import (
     is_skillcheck_ui_present,
 )
 from vd_bot.input_controller import precise_sleep, press_space_fast
+from vd_bot.mouse_hold import MouseHoldController
 from vd_bot.math_utils import (
     circular_mean_angle,
     clockwise_distance,
@@ -77,6 +80,15 @@ class BotEngine:
             color=CROSSHAIR_COLOR,
         )
         if ENABLE_CROSSHAIR
+        else None
+    )
+
+    self.mouse_hold: Optional[MouseHoldController] = (
+        MouseHoldController(
+            enabled=ENABLE_AUTO_HOLD_LMB,
+            double_click_threshold=DOUBLE_CLICK_THRESHOLD,
+        )
+        if ENABLE_AUTO_HOLD_LMB
         else None
     )
 
@@ -120,12 +132,16 @@ class BotEngine:
     self.bot_active = not self.bot_active
     status = ">>> AKTIF <<<" if self.bot_active else "|| PAUSED ||"
     print(f"\n[STATUS] Bot: {status}")
+    if not self.bot_active and self.mouse_hold and self.mouse_hold.is_holding:
+      self.mouse_hold.release_hold(reason="Bot di-pause")
 
   def trigger_calib(self):
     self.request_calib = True
 
   def trigger_exit(self):
     self.request_exit = True
+    if self.mouse_hold:
+      self.mouse_hold.stop()
 
   def reset_state_to_idle(self, reason: Optional[str] = None):
     self.current_state = self.STATE_IDLE
@@ -169,11 +185,16 @@ class BotEngine:
         f"\n[CROSSHAIR PRESET] Ganti ke -> {preset['name']} | Koordinat: ({preset['x']}, {preset['y']})"
     )
 
+  def toggle_mouse_hold(self):
+    if self.mouse_hold:
+      self.mouse_hold.toggle()
+
   def register_hotkeys(self):
     keyboard.add_hotkey("insert", self.toggle_pause)
     keyboard.add_hotkey("f7", self.toggle_debug_captures)
     keyboard.add_hotkey("f6", self.toggle_crosshair)
     keyboard.add_hotkey("f8", self.cycle_crosshair_preset)
+    keyboard.add_hotkey("f9", self.toggle_mouse_hold)
     keyboard.add_hotkey("x", self.trigger_calib)
     keyboard.add_hotkey("o", open_capture_folder)
     keyboard.add_hotkey("end", self.trigger_exit)
@@ -215,15 +236,22 @@ class BotEngine:
         if (self.crosshair and self.crosshair.visible)
         else "OFF (Nonaktif - Tekan 'F6' untuk Aktifkan)"
     )
+    hold_text = (
+        "ON (Aktif - Tekan 'F9' untuk Matikan)"
+        if (self.mouse_hold and self.mouse_hold.enabled)
+        else "OFF (Nonaktif - Tekan 'F9' untuk Aktifkan)"
+    )
     print("==========================================================")
     print("   BOT SKILL CHECK VD (MODULAR & HIGH ACCURACY ARCH)     ")
     print(f"  - Debug Captures  : {captures_text}")
     print(f"  - Crosshair Pistol: {crosshair_text}")
+    print(f"  - Auto-Hold LMB   : {hold_text}")
     print("----------------------------------------------------------")
     print(" Kontrol Hotkey:")
     print("  - [F7]     : Toggle Debug Captures & GUI (On/Off - Default OFF)")
     print("  - [F6]     : Toggle Crosshair Pistol (On/Off)")
     print("  - [F8]     : Ganti Preset Crosshair (X=-4, Y=10 <-> X=-20, Y=10)")
+    print("  - [F9]     : Toggle Auto-Hold LMB (On/Off - Double-Click Tahan, WASD Lepas)")
     print("  - [Insert] : Pause / Resume Bot")
     print("  - [O]      : Buka Folder Hasil Debug Captures di Explorer")
     print("  - [X]      : Snapshot Kalibrasi Lingkaran (cek_kalibrasi.png)")
@@ -235,6 +263,8 @@ class BotEngine:
       start_gui_thread()
     if self.crosshair:
       self.crosshair.start()
+    if self.mouse_hold:
+      self.mouse_hold.start()
     self.register_hotkeys()
     self.print_banner()
 

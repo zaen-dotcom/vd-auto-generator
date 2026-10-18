@@ -86,3 +86,13 @@ CROSSHAIR_RADIUS = 2
 # Warna titik (Hex): hijau neon terang dengan outline hitam
 CROSSHAIR_COLOR = "#00FF66"
 
+# =====================================================================
+# 4. FITUR AUTO-HOLD LMB (KLIK KIRI TAHAN OTOMATIS GENERATOR)
+# =====================================================================
+# Double-click kiri cepat (< 0.35s) = Otomatis tahan klik kiri untuk benerin generator
+# Tahan klik kiri otomatis lepas jika menekan tombol gerak (WASD) atau klik kiri lagi
+ENABLE_AUTO_HOLD_LMB = True
+# Batas waktu jeda klik (detik) untuk mendeteksi double click (default: 0.35 detik)
+DOUBLE_CLICK_THRESHOLD = 0.35
+
+

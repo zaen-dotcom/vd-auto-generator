@@ -11,10 +11,12 @@ from vd_bot.config import (
 )
 from vd_bot.crosshair import CrosshairOverlay
 from vd_bot.engine import BotEngine
+from vd_bot.mouse_hold import MouseHoldController
 
 __all__ = [
     "BotEngine",
     "CrosshairOverlay",
+    "MouseHoldController",
     "CENTER_X",
     "CENTER_Y",
     "R_MID",
