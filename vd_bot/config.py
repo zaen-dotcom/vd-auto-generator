@@ -89,10 +89,18 @@ CROSSHAIR_COLOR = "#00FF66"
 # =====================================================================
 # 4. FITUR AUTO-HOLD LMB (KLIK KIRI TAHAN OTOMATIS GENERATOR)
 # =====================================================================
-# Double-click kiri cepat (< 0.35s) = Otomatis tahan klik kiri untuk benerin generator
-# Tahan klik kiri otomatis lepas jika menekan tombol gerak (WASD) atau klik kiri lagi
+# Menahan klik kiri secara otomatis agar tidak capek saat repair generator di VD
+# Tahan klik kiri otomatis lepas jika menekan tombol gerak (WASD) atau shortcut lagi
 ENABLE_AUTO_HOLD_LMB = True
-# Batas waktu jeda klik (detik) untuk mendeteksi double click (default: 0.35 detik)
-DOUBLE_CLICK_THRESHOLD = 0.35
+
+# Tombol shortcut keyboard untuk toggle tahan klik kiri (Default: 'g' untuk Generator)
+# Pilihan populer: 'g', 'v', 'c', 't', atau 'f'
+AUTO_HOLD_KEYBOARD_HOTKEY = "g"
+
+# Aktifkan shortcut mouse untuk toggle tahan klik kiri:
+# - Klik Tengah Mouse (Scroll Wheel Click)
+# - Tombol Samping Mouse (Mouse 4 & Mouse 5)
+ENABLE_MOUSE_SHORTCUTS = True
+
 
 

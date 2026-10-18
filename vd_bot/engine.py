@@ -14,16 +14,17 @@ import mss
 import numpy as np
 
 from vd_bot.config import (
+    AUTO_HOLD_KEYBOARD_HOTKEY,
     CROSSHAIR_COLOR,
     CROSSHAIR_RADIUS,
     CROSSHAIR_X,
     CROSSHAIR_Y,
     CX,
     CY,
-    DOUBLE_CLICK_THRESHOLD,
     ENABLE_AUTO_HOLD_LMB,
     ENABLE_CROSSHAIR,
     ENABLE_DEBUG_CAPTURES,
+    ENABLE_MOUSE_SHORTCUTS,
     HARDWARE_LATENCY_SEC,
     IN_X,
     IN_Y,
@@ -86,7 +87,8 @@ class BotEngine:
     self.mouse_hold: Optional[MouseHoldController] = (
         MouseHoldController(
             enabled=ENABLE_AUTO_HOLD_LMB,
-            double_click_threshold=DOUBLE_CLICK_THRESHOLD,
+            keyboard_hotkey=AUTO_HOLD_KEYBOARD_HOTKEY,
+            enable_mouse_shortcuts=ENABLE_MOUSE_SHORTCUTS,
         )
         if ENABLE_AUTO_HOLD_LMB
         else None
@@ -187,7 +189,7 @@ class BotEngine:
 
   def toggle_mouse_hold(self):
     if self.mouse_hold:
-      self.mouse_hold.toggle()
+      self.mouse_hold.toggle_enabled()
 
   def register_hotkeys(self):
     keyboard.add_hotkey("insert", self.toggle_pause)
@@ -237,7 +239,7 @@ class BotEngine:
         else "OFF (Nonaktif - Tekan 'F6' untuk Aktifkan)"
     )
     hold_text = (
-        "ON (Aktif - Tekan 'F9' untuk Matikan)"
+        f"ON (Tekan [{AUTO_HOLD_KEYBOARD_HOTKEY.upper()}] / Klik Tengah Tahan, WASD Lepas)"
         if (self.mouse_hold and self.mouse_hold.enabled)
         else "OFF (Nonaktif - Tekan 'F9' untuk Aktifkan)"
     )
@@ -248,10 +250,13 @@ class BotEngine:
     print(f"  - Auto-Hold LMB   : {hold_text}")
     print("----------------------------------------------------------")
     print(" Kontrol Hotkey:")
+    print(f"  - [{AUTO_HOLD_KEYBOARD_HOTKEY.upper()}]      : Auto-Hold LMB Generator (Tahan / Lepas)")
+    print("  - [M-Click]: Klik Tengah Mouse (Scroll Click) Tahan / Lepas")
+    print("  - [WASD]   : Otomatis Lepas Tahan Klik Kiri Saat Bergerak")
+    print("  - [F9]     : Toggle Fitur Auto-Hold LMB (On/Off)")
+    print("  - [F8]     : Ganti Preset Crosshair (X=-4, Y=10 <-> X=-20, Y=10)")
     print("  - [F7]     : Toggle Debug Captures & GUI (On/Off - Default OFF)")
     print("  - [F6]     : Toggle Crosshair Pistol (On/Off)")
-    print("  - [F8]     : Ganti Preset Crosshair (X=-4, Y=10 <-> X=-20, Y=10)")
-    print("  - [F9]     : Toggle Auto-Hold LMB (On/Off - Double-Click Tahan, WASD Lepas)")
     print("  - [Insert] : Pause / Resume Bot")
     print("  - [O]      : Buka Folder Hasil Debug Captures di Explorer")
     print("  - [X]      : Snapshot Kalibrasi Lingkaran (cek_kalibrasi.png)")
