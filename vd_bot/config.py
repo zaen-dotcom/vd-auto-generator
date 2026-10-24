@@ -45,6 +45,16 @@ TARGET_COORDS = [create_ring_coords(r) for r in TARGET_RADII]
 NEEDLE_RADII = [R_MID - 6, R_MID - 11, R_MID - 16, R_MID - 21, R_MID - 26]
 NEEDLE_COORDS = [create_ring_coords(r) for r in NEEDLE_RADII]
 
+# Cincin sensor untuk verifikasi kontras radial (eliminasi false-positive baju/tembok putih)
+R_CONTRAST_IN = R_MID - 8
+R_CONTRAST_OUT = R_MID + 8
+CONTRAST_IN_X, CONTRAST_IN_Y = create_ring_coords(R_CONTRAST_IN)
+CONTRAST_OUT_X, CONTRAST_OUT_Y = create_ring_coords(R_CONTRAST_OUT)
+
+# Cincin sensor untuk area hitam (Good Zone - Prioritas 2)
+GOOD_ZONE_RADII = [R_MID - 1, R_MID, R_MID + 1]
+GOOD_ZONE_COORDS = [create_ring_coords(r) for r in GOOD_ZONE_RADII]
+
 # Cincin preview kalibrasi
 IN_X, IN_Y = create_ring_coords(R_IN)
 MID_X, MID_Y = create_ring_coords(R_MID)

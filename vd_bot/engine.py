@@ -116,6 +116,7 @@ class BotEngine:
     self.current_state: str = self.STATE_IDLE
     self.locked_target_angle: Optional[float] = None
     self.locked_target_width: float = 6.0
+    self.locked_target_type: str = "NONE"
     self.target_samples: list = []
 
     self.needle_prev_angle: Optional[float] = None
@@ -148,6 +149,7 @@ class BotEngine:
   def reset_state_to_idle(self, reason: Optional[str] = None):
     self.current_state = self.STATE_IDLE
     self.locked_target_angle = None
+    self.locked_target_type = "NONE"
     self.target_samples.clear()
     self.needle_prev_angle = None
     self.needle_prev_time = None
@@ -304,7 +306,7 @@ class BotEngine:
             continue
 
           # UI masih aktif di layar! Cek apakah balok putih baru sudah muncul
-          detected_target, target_w = detect_white_target(frame)
+          detected_target, target_w, target_type = detect_white_target(frame)
           if detected_target is None:
             # Balok putih lama sudah hilang/fading
             self.last_hit_target_angle = None
@@ -326,6 +328,7 @@ class BotEngine:
             self.target_samples = [detected_target]
             self.locked_target_angle = detected_target
             self.locked_target_width = max(4.0, target_w)
+            self.locked_target_type = target_type
             self.needle_prev_angle = None
             self.needle_prev_time = None
             self.needle_confirm_count = 0
@@ -360,24 +363,40 @@ class BotEngine:
         self.last_ui_seen_time = now
 
         # 4. Deteksi Target Putih & Jarum Merah
-        detected_target, target_w = detect_white_target(frame)
+        detected_target, target_w, target_type = detect_white_target(frame)
         detected_needle, needle_w = detect_red_needle(
             frame, prev_angle=self.needle_prev_angle
         )
 
-        # 5. Kunci & Perhalus Sudut Target Putih
+        # 5. Kunci & Perhalus Sudut Target (Prioritas 1: Balok Putih, Prioritas 2: Area Hitam)
         if detected_target is not None:
-          if self.locked_target_angle is None:
+          if self.locked_target_angle is None or (
+              self.locked_target_type == "GOOD_BLACK"
+              and target_type == "PERFECT_WHITE"
+          ):
+            is_upgrade = (
+                self.locked_target_type == "GOOD_BLACK"
+                and target_type == "PERFECT_WHITE"
+            )
             self.target_samples = [detected_target]
             self.locked_target_angle = detected_target
             self.locked_target_width = max(4.0, target_w)
+            self.locked_target_type = target_type
             self.current_state = self.STATE_TRACKING
             gc.disable()  # Pause GC saat jarum berputar agar deterministik tanpa micro-stutter
-            print(
-                f"[TARGET LOCKED] Balok putih terkunci di:"
-                f" {self.locked_target_angle:.1f}° | Lebar: {self.locked_target_width:.1f}° | R_MID: {R_MID}px"
-            )
-          else:
+            if is_upgrade:
+              print(f"\n[TARGET UPGRADE] Terdeteksi Balok Putih! Beralih ke Perfect Zone di: {self.locked_target_angle:.1f}°")
+            else:
+              type_label = (
+                  "Balok Putih (Prioritas 1: Perfect Zone)"
+                  if target_type == "PERFECT_WHITE"
+                  else "Area Hitam (Prioritas 2: Good Zone Fallback)"
+              )
+              print(
+                  f"[TARGET LOCKED] {type_label} terkunci di:"
+                  f" {self.locked_target_angle:.1f}° | Lebar: {self.locked_target_width:.1f}° | R_MID: {R_MID}px"
+              )
+          elif self.locked_target_type == target_type:
             signed_dist = (
                 get_signed_angle_diff(detected_needle, self.locked_target_angle)
                 if detected_needle is not None
@@ -479,7 +498,12 @@ class BotEngine:
             print(f"[TRIGGER HIT #{self.hit_counter}] >>> SPACE DITEKAN! <<< [{eval_str}]")
             print("-" * 64)
             print(f"  * Mode Trigger        : {trigger_mode}")
-            print(f"  * Posisi Target       : {hit_target_angle:.1f}° (Lebar: {self.locked_target_width:.1f}°)")
+            target_desc = (
+                "Balok Putih (Perfect Zone)"
+                if self.locked_target_type == "PERFECT_WHITE"
+                else "Area Hitam (Good Zone)"
+            )
+            print(f"  * Target Hit          : {target_desc} @ {hit_target_angle:.1f}° (Lebar: {self.locked_target_width:.1f}°)")
             print(f"  * Posisi Jarum        : {hit_needle_angle:.1f}° (Sisa jarak: {abs(signed_err):.1f}°)")
             print(f"  * Kecepatan Jarum     : {self.needle_speed:.1f}°/s | Lead Kompensasi: {lead_deg:.2f}°")
             print(f"  * Hardware Latency    : {HARDWARE_LATENCY_SEC*1000:.1f}ms | Micro-Delay: {remaining_delay*1000:.1f}ms")
