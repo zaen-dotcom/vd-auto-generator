@@ -5,8 +5,8 @@ import numpy as np
 # =====================================================================
 # 1. KONFIGURASI KALIBRASI & TIMING
 # =====================================================================
-CENTER_X = 959
-CENTER_Y = 566
+CENTER_X = 960
+CENTER_Y = 540
 R_MID = 66
 R_IN = R_MID - 3  # 63 px
 R_OUT = R_MID + 3  # 69 px

@@ -27,13 +27,13 @@ def is_skillcheck_ui_present(frame: np.ndarray) -> bool:
   dark_mask = (box[:, :, 0] < 55) & (box[:, :, 1] < 55) & (box[:, :, 2] < 55)
   dark_ratio = np.mean(dark_mask)
 
-  # Ikon tombol spasi putih di tengah kotak (RGB > 170)
+  # Ikon tombol spasi putih di tengah kotak (RGB > 150)
   white_mask = (
-      (box[:, :, 0] > 170) & (box[:, :, 1] > 170) & (box[:, :, 2] > 170)
+      (box[:, :, 0] > 150) & (box[:, :, 1] > 150) & (box[:, :, 2] > 150)
   )
   white_count = np.sum(white_mask)
 
-  return bool((dark_ratio >= 0.45) and (70 <= white_count <= 350))
+  return bool((dark_ratio >= 0.45) and (30 <= white_count <= 350))
 
 
 def detect_white_target(frame: np.ndarray) -> Tuple[Optional[float], float]:
